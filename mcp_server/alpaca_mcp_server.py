@@ -36,7 +36,9 @@ Run locally:
 
 import os
 import logging
+import random
 from contextvars import ContextVar
+from datetime import datetime, timedelta
 
 from fastmcp import FastMCP
 from sentence_transformers import SentenceTransformer
@@ -250,7 +252,7 @@ def get_current_user() -> dict:
 
 
 @mcp.tool
-def add_to_watchlist(symbol: str) -> dict:
+def add_to_watchlist(symbol: str, email: str = 'aletmi30@gmail.com') -> dict:
     """
     Add a stock to the watchlist by fetching its current quote from Massive.com
     and storing it in the Lakebase watchlist table.
@@ -265,7 +267,7 @@ def add_to_watchlist(symbol: str) -> dict:
     """
     try:
         # Get the actual end user's email (not the service principal)
-        user_email = _get_end_user_email()
+        user_email = email
         
         # Get quote from Massive.com
         quote = massive_broker.get_quote(symbol)
@@ -304,7 +306,7 @@ def add_to_watchlist(symbol: str) -> dict:
 
 
 @mcp.tool
-def get_watchlist(limit: int = 100, email: str = 'zach@dataexpert.io') -> dict:
+def get_watchlist(limit: int = 100, email: str = 'aletmi30@gmail.com') -> dict:
     """
     Retrieve all stocks in the authenticated user's watchlist from Lakebase.
     

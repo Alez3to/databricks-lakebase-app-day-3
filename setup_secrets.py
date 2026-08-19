@@ -12,14 +12,20 @@ import getpass
 
 w = WorkspaceClient()
 
-w.secrets.create_scope(scope="massive")
-w.secrets.put_secret(
-    scope="massive",
-    key="api-key",
-    string_value=getpass.getpass("Paste your Massive API key: ")
-)
+# w.secrets.create_scope(scope="massive")
+# w.secrets.put_secret(
+#     scope="massive",
+#     key="api-key",
+#     string_value=getpass.getpass("Paste your Massive API key: ")
+# )
 
-w.secrets.create_scope(scope="database")
+# try:    w.secrets.create_scope(scope="database")
+# except Exception as e:
+#     if 'ResourceAlreadyExists' in str(e):
+#         pass
+#     else:
+#         raise
+
 w.secrets.put_secret(
     scope="database",
     key="alpaca-key-id",
@@ -32,20 +38,20 @@ w.secrets.put_secret(
     string_value=getpass.getpass("Paste secret key ")
 )
 
-w.secrets.put_secret(
-    scope="database",
-    key="lakebase-url",
-    string_value=getpass.getpass("Paste your lakebase url")
-)
+# w.secrets.put_secret(
+#     scope="database",
+#     key="lakebase-url",
+#     string_value=getpass.getpass("Paste your lakebase url")
+# )
 
-w.secrets.put_acl(
-    scope="database",
-    principal="users",
-    permission=workspace.AclPermission.READ,
-)
+# w.secrets.put_acl(
+#     scope="database",
+#     principal="users",
+#     permission=workspace.AclPermission.READ,
+# )
 
-w.secrets.put_acl(
-    scope="massive",
-    principal="users",
-    permission=workspace.AclPermission.READ,
-)
+# w.secrets.put_acl(
+#     scope="massive",
+#     principal="users",
+#     permission=workspace.AclPermission.READ,
+# )
