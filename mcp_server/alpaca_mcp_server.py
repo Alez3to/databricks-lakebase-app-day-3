@@ -72,6 +72,10 @@ EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/all-M
 # Context variable to store request headers for accessing end-user identity
 _request_context: ContextVar[dict] = ContextVar('request_context', default={})
 
+# In-memory storage for staged trades (code -> trade details)
+# In production, this should be stored in Lakebase with expiration
+_staged_trades = {}
+
 
 def _get_end_user_email() -> str:
     """Get the actual end user's email from request headers, or fallback to service principal."""
