@@ -122,10 +122,11 @@ def get_quote(symbol: str) -> dict:
 
 
 @mcp.tool
-def place_trade(account_id: str, symbol: str, side: str, quantity: float) -> dict:
+def stage_trade(account_id: str, symbol: str, side: str, quantity: float) -> dict:
     """
-    Place a real market order (paper trade) - BUY or SELL - against the
-    configured Alpaca paper trading account.
+    Stage a trade by looking up the current price and generating a confirmation code.
+    This is the first step before executing a trade - provides cost summary and
+    requires confirmation via execute_trade() with the generated code.
 
     Args:
         account_id: Accepted for signature compatibility; not used to
@@ -136,10 +137,110 @@ def place_trade(account_id: str, symbol: str, side: str, quantity: float) -> dic
         quantity: Number of shares to trade (must be positive).
 
     Returns:
-        A dict describing the order (id, symbol, side, quantity,
+        A dict with trade summary, estimated cost, and a 5-digit confirmation code
+        needed to execute the trade.
+    """
+    try:
+        # Get current quote
+        quote = massive_broker.get_quote(symbol)
+        
+        # Calculate estimated cost
+        estimated_cost = quote["price"] * quantity
+        
+        # Generate 5-digit confirmation code
+        confirmation_code = f"{random.randint(10000, 99999)}"
+        
+        # Store staged trade (expires after 5 minutes)
+        expiry = datetime.now() + timedelta(minutes=5)
+        _staged_trades[confirmation_code] = {
+            "account_id": account_id,
+            "symbol": symbol,
+            "side": side,
+            "quantity": quantity,
+            "estimated_price": quote["price"],
+            "estimated_cost": estimated_cost,
+            "expires_at": expiry.isoformat(),
+        }
+        
+        return {
+            "status": "staged",
+            "confirmation_code": confirmation_code,
+            "trade_summary": {
+                "symbol": symbol,
+                "side": side,
+                "quantity": quantity,
+                "current_price": quote["price"],
+                "estimated_cost": estimated_cost,
+                "currency": "USD",
+            },
+            "quote_details": quote,
+            "message": f"Trade staged. To execute, call execute_trade() with confirmation code: {confirmation_code}",
+            "expires_in_minutes": 5,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to stage trade for {symbol}")
+        return {
+            "status": "error",
+            "message": f"Failed to stage trade: {str(e)}",
+        }
+
+
+@mcp.tool
+def execute_trade(confirmation_code: str) -> dict:
+    """
+    Execute a previously staged trade using the 5-digit confirmation code.
+    The trade must have been staged within the last 5 minutes using stage_trade().
+
+    Args:
+        confirmation_code: The 5-digit code returned by stage_trade().
+
+    Returns:
+        A dict describing the executed order (id, symbol, side, quantity,
         price, notional, status, created_at).
     """
-    return alpaca_broker.place_order(account_id, symbol, side, quantity)
+    try:
+        # Clean up expired trades
+        now = datetime.now()
+        expired_codes = [
+            code for code, trade in _staged_trades.items()
+            if datetime.fromisoformat(trade["expires_at"]) < now
+        ]
+        for code in expired_codes:
+            del _staged_trades[code]
+        
+        # Validate confirmation code
+        if confirmation_code not in _staged_trades:
+            return {
+                "status": "error",
+                "message": "Invalid or expired confirmation code. Please stage the trade again.",
+            }
+        
+        # Retrieve staged trade
+        staged = _staged_trades[confirmation_code]
+        
+        # Execute the trade
+        result = alpaca_broker.place_order(
+            staged["account_id"],
+            staged["symbol"],
+            staged["side"],
+            staged["quantity"]
+        )
+        
+        # Remove from staged trades
+        del _staged_trades[confirmation_code]
+        
+        # Add confirmation info to result
+        result["confirmation_code"] = confirmation_code
+        result["staged_price"] = staged["estimated_price"]
+        
+        return result
+        
+    except Exception as e:
+        logger.exception("Failed to execute trade")
+        return {
+            "status": "error",
+            "message": f"Failed to execute trade: {str(e)}",
+        }
 
 
 @mcp.tool
